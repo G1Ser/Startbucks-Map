@@ -59,4 +59,298 @@
         }
     }
 </style>
+<script>
+<script>
+    const selectCity = (name) => {
+        if (name !== GaoDe.LocalCity) {
+            const cityIndex = cityList.city_list.findIndex(city => city.city === name)
+            if (cityIndex !== -1) {
+                cityList.city_list[cityIndex].visitCount++
+                if (cityList.visit_city) {
+                    cityList.saveVisitedCities()
+                }
+            }
+        }
+        GaoDe.setCity(name)
+        route.push('/')
+    }
+    const letters = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i))
+    const scrollTo = (letter) => {
+        const element = document.getElementById(`letter-${letter}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' })
+        }
+    }
+</script>
+
+</script>
+```
+```
+export const useCityList = defineStore('citylist', () => {
+  //用于存储解析后的城市列表数据，每个城市信息包括其ID、首字母、城市名和访问次数。
+  const city_list = ref([]);
+  //存储用户访问过的城市列表，用于显示最近访问的城市。
+  const visit_city = ref([]);
+  //多音字城市的手动映射
+  const polyphonicCities = {
+    '重庆市': 'C',
+  }
+  async function fetchCityList() {
+    const url = '/市.geojson';
+    try {
+      const response = await axios.get(url);
+      const features = response.data.features;
+      //尝试从本次存储获取已经存在的城市列表数据
+      const visitedCityList = localStorage.getItem('visitedCities');
+      const visitedCities = visitedCityList ? JSON.parse(visitedCityList) : [];
+      //构建新数组
+      let cities = features.map((feature, index) => {
+        const city = feature.properties.市;
+        let firstLetter = '#';
+        // 尝试找到当前城市在已访问城市列表中的记录
+        const visitedCity = visitedCities.find(City => City.city === city);
+        let visitCount = visitedCity ? visitedCity.visitCount : 0;
+        if (polyphonicCities[city]) {
+          firstLetter = polyphonicCities[city];
+        } else if (pinyin.isSupported()) {
+          firstLetter = pinyin.convertToPinyin(city, '', true).charAt(0).toUpperCase();
+        }
+        return { id: index + 1, firstLetter, city, visitCount };
+      }).sort((a, b) => a.firstLetter.localeCompare(b.firstLetter));
+      city_list.value = cities
+    } catch (error) {
+      console.error(error)
+    }
+  }
+  const saveVisitedCities = () => {
+    //将访问次数大于0的城市保存到localStorage中，用于持久化用户的访问历史。
+    const visitedCities = city_list.value.filter(city => city.visitCount > 0)
+    localStorage.setItem('visitedCities', JSON.stringify(visitedCities))
+  }
+  //从localStorage中加载访问过的城市列表，并根据访问次数和首字母进行排序，最后更新visit_city状态以显示最多5个最近访问的城市。
+  const loadVisitedCities = () => {
+    const visitedCityList = localStorage.getItem('visitedCities');
+    if (visitedCityList) {
+      let visitedCities = JSON.parse(visitedCityList)
+      visitedCities.sort((a, b) => {
+        if (a.visitCount === b.visitCount) {
+          return a.firstLetter.localeCompare(b.firstLetter)
+        }
+        return b.visitCount - a.visitCount
+      })
+      visit_city.value = visitedCities.slice(0, 5)
+    }
+  }
+  //计算属性，用于分组城市
+  const groupCities = computed(() => {
+    return city_list.value.reduce((groups, city) => {
+      const { firstLetter } = city;
+      if (!groups[firstLetter]) {
+        groups[firstLetter] = [];
+      }
+      groups[firstLetter].push(city);
+      return groups;
+    }, {});
+  });
+  return { fetchCityList, saveVisitedCities, loadVisitedCities, city_list, visit_city, groupCities }
+})
+```
+## 4.2 地图展示
+用户检索的城市信息被存储在CityInfo状态中。通过Vue对这个状态进行监听，一旦检测到其中的信息发生变化，即触发地图的重新渲染过程。在渲染过程中，通过计算矢量图层的范围，确保所选城市能够在地图上居中显示。
+```
+<script>
+    watch(() => GaoDe.cityInfo, (newCityInfo) => {
+        if (newCityInfo) {
+            MapStore.fetchCityData(newCityInfo).then(() => {
+                MapStore.mapData(map.value, MapStore.cityGeoJSON, MapStore.starbucksGeoJSON, MapStore.unstarbucksGeoJSON, true);
+            });
+        }
+    }, { immediate: true, });
+</script>
+```
+```
+    //计算矢量图层范围
+    const extent = boundarySource.getExtent();
+    map.addLayer(boundaryLayer);
+    map.addLayer(starbucksLayer);
+    map.addLayer(unstarbucksLayer);
+    //判断是否需要居中显示，后续触发点击事件不需要地图重新居中
+    if (isextend) {
+        map.getView().fit(extent, { duration: 1500, padding: [50, 50, 50, 50] });
+    }
+```
+## 4.3 门店信息查看
+基于OpenLayers Popup对得到焦点的星巴克门店数据进行信息查看。
+```
+//设置showDialog计算属性，失去焦点后信息框不再渲染。
+<div v-if="showDialog" class="map-popup"
+    //设置Popup信息框的定位，使其位于星巴克门店图层的上方
+    :style="{ position: 'absolute', left: `${popupPosition.x}px`, top: `${popupPosition.y}px` }"
+    v-html="tooltipContent">
+</div>
+<script>
+    //给地图设置焦点事件
+    map.value.on('pointermove', (e) => {
+        let featureFound = false;
+        //检索星巴克门店图层
+        map.value.forEachFeatureAtPixel(e.pixel, (feature) => {
+            if (feature.getGeometry().getType() === 'Point') {
+                const properties = feature.getProperties();
+                tooltipContent.value = `${properties.门店名}<br>营业时间：${properties.开始时间}<br>休息时间：${properties.休息时间}`;
+                showDialog.value = true; // 显示弹窗
+                popupPosition.x = e.pixel[0] - 65;
+                popupPosition.y = e.pixel[1] - 20;
+                featureFound = true;
+            }
+        });
+        if (!featureFound) {
+            showDialog.value = false;
+        }
+    });
+</script>
+```
+## 4.4 标记了一处星巴克门店
+基于Json-Server将双击的星巴克门店进行标记
+```
+<script>
+    map.value.on('dblclick', (e) => {
+        //组织地图放大事件
+        e.preventDefault();
+        map.value.forEachFeatureAtPixel(e.pixel, (feature) => {
+            if (feature.getGeometry().getType() === 'Point') {
+                const properties = feature.getProperties();
+                //设置updatecontent，将对象数据通过json-server写入后端星巴克门店数据
+                const updatecontent = {
+                    "id": properties.id,
+                    "开始时间": properties.开始时间,
+                    "休息时间": properties.休息时间,
+                    "门店名": properties.门店名,
+                    "Discover": "True",
+                    "省": properties.省,
+                    "市": properties.市,
+                    "县": properties.县
+                };
+                //为星巴克门店数据添加id，使json-server可以读取该数据
+                axios.patch(`http://localhost:3000/features/${properties.id}`, { properties: updatecontent }).then(() => {
+                    MapStore.fetchCityData(GaoDe.cityInfo).then(() => {
+                        //此时不再重现计算图层的范围对其居中显示
+                        MapStore.mapData(map.value, MapStore.cityGeoJSON, MapStore.starbucksGeoJSON, MapStore.unstarbucksGeoJSON, false);
+                    });
+                })
+            }
+        })
+    })
+</script>
+```
+## 4.5 地图导航
+基于Gao De Web API设计起始点和目的地的导航。首先，利用高德Web API中的AMap.Driving服务插件，根据用户指定的起始点和目的地，请求获取驾车导航的路线数据。AMap.Driving插件通过算法优化，为用户提供了最佳的行驶路线，包括必要的转弯、经过的道路等详细信息。获取到的路径数据默认格式适用于高德地图，为了在OpenLayers中使用这些数据，需要将其转换成OL能够理解的GeoJSON格式，最后，利用OpenLayers提供的功能，在地图上绘制出导航路线。
+```
+  //启动Amap.Driving服务
+  <script type="text/javascript">
+    window._AMapSecurityConfig = {
+      securityJsCode: 'your Web securityJsCode',
+    }
+  </script>
+  <script type="text/javascript"
+    src="https://webapi.amap.com/maps?v=2.0&key=your Web Key&plugin=AMap.Driving"></script>
+```
+```
+<div class="nav-inputs">
+    <el-input v-model="startpointname" style="width: 15vw" placeholder="输入起点" @click="selectSPoint" clearable
+        readonly />
+    <el-input v-model="endpointname" style="width: 15vw" placeholder="输入终点" @click="selectEPoint" clearable readonly />
+    <el-button round @click="nav" style="width: 5vw" :disabled="isDisabled">导航</el-button>
+</div>
+<script>
+    const selectSPoint = () => {
+        selectmode.value = "start"
+        select(selectmode.value)
+    }
+    const selectEPoint = () => {
+        selectmode.value = "end"
+        select(selectmode.value)
+    }
+    //设置事件管理器，防治起点和终点输入均触发
+    let clickListener;
+    function select(selectmode) {
+        if (clickListener) {
+            map.value.un('click', clickListener);
+        }
+        clickListener = (e) => {
+            map.value.forEachFeatureAtPixel(e.pixel, (feature) => {
+                if (feature.getGeometry().getType() === 'Point') {
+                    const properties = feature.getProperties();
+                    const geometry = feature.getGeometry();
+                    const coordinates = geometry.getCoordinates();
+                    if (selectmode === "start") {
+                        startpointname.value = properties.门店名;
+                        startpoint.value = coordinates
+                    } else if (selectmode === "end") {
+                        endpointname.value = properties.门店名;
+                        endpoint.value = coordinates
+                    }
+                }
+            })
+        }
+        map.value.on('click', clickListener);
+    }
+    //计算属性，防治误触导航按钮
+    const isDisabled = computed(() => {
+        return startpointname.value === '' || endpointname.value === '';
+    });
+    const nav = () => {
+        //移除上条导航信息
+        MapStore.removeLineLayers(map.value)
+        startpointname.value = ''
+        endpointname.value = ''
+        //重构Amap Driving插件
+        var driving = new AMap.Driving();
+        var lineStyle = new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: '#007bff',
+                width: 4
+            })
+        });
+        var route;
+        //存储路径信息
+        var routeCoordinates = [];
+        function fetchroute(startLngLat, endLngLat) {
+            return new Promise((resolve, reject) => {
+                driving.search(startLngLat, endLngLat, function (status, result) {
+                    if (status === 'complete') {
+                        resolve(result.routes); // 使用resolve返回成功的结果
+                    } else {
+                        reject('获取驾车数据失败：' + result); // 使用reject返回失败的原因
+                    }
+                });
+            });
+        }
+        fetchroute(startpoint.value, endpoint.value)
+            .then(routes => {
+                route = routes; // 将解析的结果赋值给外部变量route
+                routeCoordinates.push(startpoint.value);
+                route[0].steps.forEach((step) => {
+                    step.path.forEach((path) => {
+                        routeCoordinates.push([path.lng, path.lat])
+                    })
+                })
+                routeCoordinates.push(endpoint.value)
+                var lineFeature = new ol.Feature({
+                    geometry: new ol.geom.LineString(routeCoordinates)
+                });
+                var lineSource = new ol.source.Vector({
+                    features: [lineFeature]
+                });
+                var lineLayer = new ol.layer.Vector({
+                    source: lineSource,
+                    style: lineStyle,
+                    isLineLayer: true
+                });
+                map.value.addLayer(lineLayer)
+            })
+            .catch(error => {
+                console.error(error); // 错误处理
+            });
+    }
+</script>
 ```
