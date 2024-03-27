@@ -21,24 +21,42 @@
 # 4.项目核心功能讲解
 ## 4.1 A-Z城市检索
 本项目采用Element-Plus Layout进行快速布局设计，创建一个直观和用户友好的界面。通过axios读取demo.geojson文件，解析各个城市的名称，进一步通过pin-yin库提取每个城市名称的首字母。特别注意到“重庆市”作为一个多音字例外，并为其单独设定了处理规则。
-接着，按照城市名称的首字母对城市进行了分组，创建了一个清晰的城市列表视图。每个城市旁边，设计并实现了一个列表，用户点击后即可实现到对应城市的页面跳转。使用户能够更快地找到并访问他们感兴趣的城市信息。
+接着，按照城市名称的首字母对城市进行了分组，创建了一个清晰的城市列表视图。每个城市旁边，设计并实现了一个列表，用户点击后即可实现到对应城市的页面跳转。使用户能够更快地找到并访问他们感兴趣的城市信息。其中利用css粘性定位使得字母索引在搜索过程中始终保持一个固定位置。
 ```
-            <div class="layout">
-                <div class="citylist">
-                    <div v-for="(group, letter) in cityList.groupCities" :key="letter">
-                        <el-row :gutter="20">
-                            <el-col :span="24">
-                                <div class="letter" :id="`letter-${letter}`">{{ letter }}</div>
-                            </el-col>
-                            <el-col :span="24" v-for="city in group" :key="city.id">
-                                <p class="style3" @click="selectCity(city.city)">{{ city.city }}</p>
-                            </el-col>
-                        </el-row>
-                    </div>
-                </div>
-                <div class="letter-nav">
-                    <div class="letter" v-for="letter in letters" :key="letter" @click="scrollTo(letter)">{{ letter }}
-                    </div>
-                </div>
-            </div>
+<div class="layout">
+    <div class="citylist">
+        <div v-for="(group, letter) in cityList.groupCities" :key="letter">
+            <el-row :gutter="20">
+                <el-col :span="24">
+                    <div class="letter" :id="`letter-${letter}`">{{ letter }}</div>
+                </el-col>
+                <el-col :span="24" v-for="city in group" :key="city.id">
+                    <p class="style3" @click="selectCity(city.city)">{{ city.city }}</p>
+                </el-col>
+            </el-row>
+        </div>
+    </div>
+    <div class="letter-nav">
+        <div class="letter" v-for="letter in letters" :key="letter" @click="scrollTo(letter)">{{ letter }}
+        </div>
+    </div>
+</div>
+<style>
+    .letter-nav {
+        padding-left: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: start;
+        position: sticky;
+        top: 3vh;
+        z-index: 100;
+        height: 600px;
+
+        .letter {
+            cursor: pointer;
+            margin: 1px 0;
+        }
+    }
+</style>
 ```
