@@ -354,3 +354,45 @@ export const useCityList = defineStore('citylist', () => {
     }
 </script>
 ```
+## 4.6 线上部署
+本次使用云服务器使用nginx对本地项目进行部署
+## 4.6.1 打包项目
+获取dist目录
+```
+npm run build
+```
+## 4.6.2 安装Xshell和Xftp
+用于云服务器管理和文件传输。
+## 4.6.3 安装nginx
+云服务器安装nginx，用于静态网页线上部署。
+```
+sudo apt update
+sudo apt install nginx
+```
+## 4.6.4 配置nginx
+```
+//创建新的Nginx配置文件
+sudo nano /etc/nginx/sites-available/startbucksmap.conf
+//编辑nano文件
+server {
+    listen 80;
+    server_name your ip;
+
+    root your root;
+
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+}
+//启动站点
+sudo ln -s /etc/nginx/sites-available/starbucksmap.conf /etc/nginx/sites-enabled/
+//检查nginx配置
+sudo nginx -t
+//重新加载nginx
+sudo systemctl reload nginx
+```
+# 5.线上地址
+该项目目前在展示方面遇到性能瓶颈，主要原因是geojson数据尚未进行分块处理。我们计划在不久的将来对数据进行优化，以提升用户体验。此次优化将专注于数据处理效率，而不会影响现有逻辑架构。[startbucks](http://http://43.139.219.105/)
