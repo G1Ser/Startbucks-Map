@@ -34,7 +34,7 @@ export const useCityList = defineStore('citylist', () => {
     '重庆市': 'C',
   }
   async function fetchCityList() {
-    const url = '/市.geojson';
+    const url = '/市demo.geojson';
     try {
       const response = await axios.get(url);
       const features = response.data.features;
@@ -92,7 +92,7 @@ export const useCityList = defineStore('citylist', () => {
   return { fetchCityList, saveVisitedCities, loadVisitedCities, city_list, visit_city, groupCities }
 })
 export const useGaoDeStore = defineStore('GaoDe', () => {
-  const key = ref('66a865570fd1e4a0c42f5a173ec8d7d9')
+  const key = ref('your key')
   const cityInfo = ref(null)
   const LocalCity = ref(null)
   const getLocallocation = async () => {
@@ -148,10 +148,10 @@ export const useGaoDeStore = defineStore('GaoDe', () => {
   return { LocalCity, cityInfo, getLocallocation, setCity, LocalWeatherInfo, getLocalWeather, WeatherList, getForecastWeather }
 })
 export const useMapStore = defineStore('Map', () => {
-  const province_url = '/省.geojson';
-  const city_url = '/市.geojson';
-  const county_url = '/县.geojson';
-  const starbuck_url = '/星巴克数据.geojson';
+  const province_url = '/省demo.geojson';
+  const city_url = '/市demo.geojson';
+  const county_url = '/县demo.geojson';
+  const starbuck_url = '/星巴克数据demo.geojson';
   const cityGeoJSON = ref({ type: '', crs: '', features: '' })
   const starbucksGeoJSON = ref({ type: '', crs: '', features: '' })
   const unstarbucksGeoJSON = ref({ type: '', crs: '', features: '' })
