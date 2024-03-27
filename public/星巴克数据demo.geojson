@@ -1,0 +1,53 @@
+{
+  "type": "FeatureCollection",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "1",
+        "开始时间": "08:30",
+        "休息时间": "23:00",
+        "门店名": "三亚夏日百货分店",
+        "Discover": "False",
+        "省": "海南省",
+        "市": "三亚市",
+        "县": "吉阳区"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          109.523588,
+          18.223877
+        ]
+      },
+      "id": "1"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "4069",
+        "开始时间": "09:00",
+        "休息时间": "21:00",
+        "门店名": "齐齐哈尔万达广场店",
+        "Discover": "False",
+        "省": "黑龙江省",
+        "市": "齐齐哈尔市",
+        "县": "建华区"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.950698,
+          47.366553
+        ]
+      },
+      "id": "4069"
+    }
+  ]
+}
