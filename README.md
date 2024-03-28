@@ -215,6 +215,18 @@ export const useCityList = defineStore('citylist', () => {
 ## 4.4 标记了一处星巴克门店
 基于Json-Server将双击的星巴克门店进行标记
 ```
+//跨域请求
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000', 
+        changeOrigin: true, 
+        rewrite: (path) => path.replace(/^\/api/, ''), 
+      },
+    },
+  },
+```
+```
 <script>
     map.value.on('dblclick', (e) => {
         //组织地图放大事件
